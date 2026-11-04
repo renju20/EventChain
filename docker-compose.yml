@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  eventchain:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eventchain-app
+    ports:
+      - "8080:8080"  # Backend
+      - "3000:3000"  # Frontend
+    environment:
+      # Blockchain Configuration
+      - blockchain.network.url=${BLOCKCHAIN_NETWORK_URL:-https://polygon-rpc.com}
+      - blockchain.contract.address=${BLOCKCHAIN_CONTRACT_ADDRESS:-}
+      - blockchain.private.key=${BLOCKCHAIN_PRIVATE_KEY:-}
+      
+      # IPFS Configuration
+      - ipfs.host=${IPFS_HOST:-127.0.0.1}
+      - ipfs.port=${IPFS_PORT:-5001}
+      - ipfs.protocol=${IPFS_PROTOCOL:-http}
+      
+      # Server Configuration
+      - server.port=8080
+    volumes:
+      # Optional: Mount application.properties for easy configuration
+      - ./src/main/resources/application.properties:/app/application.properties:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/events"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: IPFS service (uncomment if you want IPFS in Docker)
+  # ipfs:
+  #   image: ipfs/kubo:latest
+  #   container_name: eventchain-ipfs
+  #   ports:
+  #     - "4001:4001"  # Swarm
+  #     - "5001:5001"  # API
+  #     - "8080:8080"  # Gateway (if needed)
+  #   volumes:
+  #     - ipfs-data:/data/ipfs
+  #   restart: unless-stopped
+
+# volumes:
+#   ipfs-data:

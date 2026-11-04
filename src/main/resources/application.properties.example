@@ -1,0 +1,26 @@
+# Server Configuration
+server.port=8080
+
+# Blockchain Configuration
+# 
+# FOR TESTING/EDUCATION (No real crypto needed - Recommended!):
+# 1. Install Ganache: https://trufflesuite.com/ganache/ (Free, easy setup)
+# 2. Start Ganache - click "Quickstart" (runs on http://127.0.0.1:7545)
+# 3. Deploy EventChain.sol to Ganache using Remix IDE (see QUICK_TEST_SETUP.md)
+# 4. Copy contract address and private key from Ganache
+# 5. Update the values below
+#
+# Ganache provides 10 test accounts with 100 fake ETH each - perfect for testing!
+blockchain.network.url=http://127.0.0.1:7545
+blockchain.contract.address=
+blockchain.private.key=
+
+# IPFS Configuration
+ipfs.host=127.0.0.1
+ipfs.port=5001
+ipfs.protocol=http
+
+# Application Configuration
+app.name=EventChain
+app.version=1.0.0
+
