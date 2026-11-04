@@ -1,126 +1,110 @@
 # EventChain – Universal Verifiable Event Ledger
 
-A full-stack blockchain application that provides a verifiable, append-only event ledger using Solidity smart contracts, IPFS for decentralized storage, and a Java Spring Boot backend.
+EventChain is a full-stack blockchain application that records events (such as certificates or documents) on an **append-only on-chain ledger**, so anyone can later check that a record is genuine and has not been altered.
 
-## 🏗️ Architecture
+Event metadata is stored on **IPFS**, its hash is written to a **Solidity smart contract**, and each event produces a **proof JSON and QR code** that can be verified against the blockchain.
 
-### Smart Contract Layer (Solidity)
-- **Contract**: `EventChain.sol`
-- **Network**: Ethereum/Polygon (EVM-compatible chains)
-- **Features**:
-  - Append-only event storage
-  - Event verification by hash
-  - Query events by index or get all events
+## Why this project
 
-### Backend Layer (Java Spring Boot)
-- **Framework**: Spring Boot 3.2.0
-- **Blockchain Integration**: Web3j 4.9.8
-- **IPFS Integration**: IPFS HTTP Client
-- **QR Code Generation**: ZXing
+Paper and PDF certificates are easy to fake. EventChain makes a record tamper-evident: once an event is on-chain it cannot be edited, and verification only needs the metadata hash.
 
-## 📋 Prerequisites
+## Features
 
-1. **Java 17+** installed
-2. **Maven 3.6+** installed
-3. **IPFS Node** running (default: localhost:5001)
-   - Install from: https://docs.ipfs.tech/install/
-   - Start IPFS: `ipfs daemon`
-4. **Ethereum/Polygon Node** or RPC endpoint
-   - Polygon RPC: https://polygon-rpc.com (public)
-   - Or use a local node like Ganache for testing
+- Add events (type + metadata) to the blockchain through a REST API or a React web app
+- Metadata stored on IPFS, hash stored on-chain
+- Timeline view of every recorded event
+- Verify any event by its hash
+- Proof JSON and QR code generated for each event
+- MetaMask wallet connection in the web frontends
 
-## 🚀 Getting Started
+## Architecture
 
-### Option A: Local Test Setup (Recommended for Education/Testing - No Real Crypto!)
+| Layer | Technology | Location |
+|---|---|---|
+| Smart contract | Solidity ^0.8.19 | `contracts/EventChain.sol` |
+| Backend API | Java 17, Spring Boot 3.2, Web3j, ZXing | `src/`, `pom.xml` |
+| Frontend (CRA) | React, ethers.js, Tailwind CSS | `frontend/` |
+| Frontend (Vite) | React, ethers.js, Tailwind CSS | `event-chain-react/` |
+| Storage | IPFS | external node |
+| Local chain | Ganache | external tool |
 
-**Perfect for learning and testing without spending real money!**
+## Project structure
 
-1. **Install Ganache** (Local blockchain):
-   - Download: https://trufflesuite.com/ganache/
-   - Install and click "Quickstart"
-   - Ganache runs on `http://127.0.0.1:7545` with 10 test accounts (100 fake ETH each)
+```
+EventChain/
+├── contracts/            # Solidity smart contracts (EventChain.sol)
+├── src/main/java/        # Spring Boot backend
+│   └── com/eventchain/   # config, controller, dto, model, service
+├── src/main/resources/   # application.properties.example
+├── frontend/             # React (Create React App) frontend
+├── event-chain-react/    # React (Vite) frontend
+├── scripts/              # Deployment scripts
+├── tests/                # Contract tests
+├── Dockerfile, docker-compose.yml
+└── pom.xml
+```
 
-2. **Deploy Contract to Ganache**:
-   - See `DEPLOY_TO_GANACHE.md` for detailed step-by-step instructions
-   - Or use Remix IDE: https://remix.ethereum.org
-   - Connect to Ganache and deploy
-   - Copy the contract address
+## Prerequisites
 
-3. **Configure Application**:
-   - Update `src/main/resources/application.properties`:
+1. Java 17+
+2. Maven 3.6+
+3. Node.js 18+ (for the React frontends)
+4. An IPFS node (`ipfs daemon`, default `localhost:5001`) – https://docs.ipfs.tech/install/
+5. A blockchain: Ganache for local testing, or a testnet RPC such as Sepolia
+
+## Local configuration
+
+Real keys are never committed. Create your own config files from the examples:
+
+- **Backend:** copy `src/main/resources/application.properties.example` to `src/main/resources/application.properties` and fill in your values.
+- **Vite frontend:** copy `event-chain-react/src/config/contract.example.js` to `event-chain-react/src/config/contract.js` and fill in your values.
+
+## Getting started (local test setup, no real crypto)
+
+1. **Start Ganache** (https://trufflesuite.com/ganache/) and click *Quickstart*. It runs on `http://127.0.0.1:7545` with 10 test accounts.
+2. **Deploy the contract** `contracts/EventChain.sol` with Remix (https://remix.ethereum.org) connected to Ganache. Compile with Solidity 0.8.19 and copy the deployed contract address. See `QUICK_TEST_SETUP.md` for a step-by-step guide.
+3. **Configure the backend** in `application.properties`:
    ```properties
    blockchain.network.url=http://127.0.0.1:7545
    blockchain.contract.address=YOUR_DEPLOYED_CONTRACT_ADDRESS
    blockchain.private.key=YOUR_GANACHE_PRIVATE_KEY
+   ipfs.host=127.0.0.1
+   ipfs.port=5001
+   ipfs.protocol=http
    ```
+4. **Run the backend:**
+   ```bash
+   mvn clean install
+   mvn spring-boot:run
+   ```
+   The API is available at `http://localhost:8080`.
+5. **Run a frontend** (pick one):
+   ```bash
+   cd event-chain-react   # or: cd frontend
+   npm install
+   npm run dev            # CRA frontend: npm start
+   ```
+6. **Connect MetaMask** to Ganache (`http://127.0.0.1:7545`, Chain ID `1337`) and import a Ganache account.
 
-4. **Connect MetaMask to Ganache**:
-   - Add network: `http://127.0.0.1:7545`, Chain ID: `1337`
-   - Import a Ganache account to MetaMask
-   - You now have 100 fake ETH for testing!
+For a public network, deploy the contract to a testnet such as **Sepolia** or **Polygon Amoy**, point `blockchain.network.url` at an RPC endpoint, and supply the private key through the `BLOCKCHAIN_PRIVATE_KEY` environment variable instead of a file.
 
-**See `QUICK_TEST_SETUP.md` for a 5-minute setup guide!**
+## API endpoints
 
-### Option B: Production Setup (Real Blockchain)
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/events` | Upload metadata to IPFS and store the event on-chain |
+| GET | `/events` | Get all events |
+| GET | `/events/{id}` | Get one event by index |
+| GET | `/events/verify/{hash}` | Check whether a metadata hash exists on-chain |
 
-### 1. Deploy Smart Contract
-
-1. Install Solidity compiler and deploy tools (Hardhat, Truffle, or Remix)
-2. Compile `contracts/EventChain.sol`
-3. Deploy to your target network (Polygon recommended for low gas fees)
-4. Save the contract address
-
-**Using Remix IDE (Easiest)**:
-- Go to https://remix.ethereum.org
-- Create a new file `EventChain.sol` and paste the contract code
-- Compile with Solidity 0.8.19
-- Deploy to Polygon (or testnet)
-- Copy the deployed contract address
-
-### 2. Configure Application
-
-Edit `src/main/resources/application.properties`:
-
-```properties
-# Blockchain Configuration
-blockchain.network.url=https://polygon-rpc.com
-blockchain.contract.address=YOUR_CONTRACT_ADDRESS_HERE
-blockchain.private.key=YOUR_PRIVATE_KEY_HERE
-
-# IPFS Configuration
-ipfs.host=127.0.0.1
-ipfs.port=5001
-ipfs.protocol=http
-```
-
-**⚠️ Security Note**: In production, use environment variables or a secrets manager for the private key.
-
-### 3. Build and Run
-
+**Create an event**
 ```bash
-# Build the project
-mvn clean install
-
-# Run the application
-mvn spring-boot:run
+curl -X POST http://localhost:8080/events \
+  -H "Content-Type: application/json" \
+  -d '{"eventType":"certificate","metadata":"{\"name\":\"John Doe\",\"degree\":\"Computer Science\"}"}'
 ```
 
-The API will be available at `http://localhost:8080`
-
-## 📡 API Endpoints
-
-### POST /events
-Create a new event by uploading metadata to IPFS and storing it on-chain.
-
-**Request Body**:
-```json
-{
-  "eventType": "certificate",
-  "metadata": "{\"name\":\"John Doe\",\"degree\":\"Computer Science\"}"
-}
-```
-
-**Response**:
+**Example response**
 ```json
 {
   "index": 0,
@@ -129,110 +113,22 @@ Create a new event by uploading metadata to IPFS and storing it on-chain.
   "metadataHash": "QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco",
   "timestamp": 1702809540,
   "transactionHash": "0xabc123...",
-  "proofJson": "{\n  \"eventHash\" : \"0x...\",\n  \"actor\" : \"0x...\",\n  \"timestamp\" : \"2025-12-17T09:39:00Z\",\n  \"txHash\" : \"0x...\"\n}",
-  "qrCodeBase64": "iVBORw0KGgoAAAANSUhEUgAA..."
+  "proofJson": "...",
+  "qrCodeBase64": "iVBORw0KGgo..."
 }
 ```
 
-### GET /events
-Retrieve all events from the blockchain.
-
-**Response**: Array of event objects (same structure as POST response)
-
-### GET /events/{id}
-Get a single event by its index.
-
-**Path Parameters**:
-- `id`: Event index (BigInteger)
-
-**Response**: Single event object
-
-### GET /verify/{hash}
-Verify if an event hash exists on-chain.
-
-**Path Parameters**:
-- `hash`: IPFS metadata hash to verify
-
-**Response**:
+**Verify a hash**
+```bash
+curl http://localhost:8080/events/verify/QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco
+```
 ```json
-{
-  "exists": true,
-  "index": 0,
-  "message": "Hash verified and exists on-chain"
-}
+{ "exists": true, "index": 0, "message": "Hash verified and exists on-chain" }
 ```
 
-## 🔧 Development
+## Proof JSON
 
-### Project Structure
-
-```
-EventChain/
-├── contracts/
-│   └── EventChain.sol          # Solidity smart contract
-├── src/main/java/com/eventchain/
-│   ├── EventChainApplication.java
-│   ├── config/
-│   │   └── BlockchainConfig.java
-│   ├── controller/
-│   │   ├── EventController.java
-│   │   └── GlobalExceptionHandler.java
-│   ├── dto/
-│   │   ├── EventRequest.java
-│   │   ├── EventResponse.java
-│   │   ├── ProofJson.java
-│   │   └── VerifyResponse.java
-│   ├── model/
-│   │   └── Event.java
-│   └── service/
-│       ├── BlockchainService.java
-│       ├── IpfsService.java
-│       ├── ProofService.java
-│       └── QRCodeService.java
-├── src/main/resources/
-│   └── application.properties
-└── pom.xml
-```
-
-### Testing
-
-1. **Test IPFS Connection**:
-   ```bash
-   curl http://127.0.0.1:5001/api/v0/version
-   ```
-
-2. **Test Blockchain Connection**:
-   - Ensure your RPC endpoint is accessible
-   - Check contract address is correct
-   - Verify private key has gas funds
-
-3. **Test API**:
-   ```bash
-   # Create an event
-   curl -X POST http://localhost:8080/events \
-     -H "Content-Type: application/json" \
-     -d '{
-       "eventType": "test",
-       "metadata": "{\"test\":\"data\"}"
-     }'
-   
-   # Get all events
-   curl http://localhost:8080/events
-   
-   # Verify a hash
-   curl http://localhost:8080/events/verify/QmXoypizjW3WknFiJnKLwHCnL72vedxjQkDDP1mXWo6uco
-   ```
-
-## 🔐 Security Considerations
-
-1. **Private Key Management**: Never commit private keys to version control. Use environment variables or secure vaults.
-2. **IPFS Public Access**: IPFS content is publicly accessible by hash. Don't store sensitive data without encryption.
-3. **Gas Fees**: Ensure the wallet has sufficient funds for transactions.
-4. **Input Validation**: Always validate user inputs before processing.
-
-## 📝 Proof JSON Format
-
-Each event generates a verifiable proof JSON:
+Each event generates a proof that is returned in the response and encoded as a QR code:
 
 ```json
 {
@@ -243,71 +139,26 @@ Each event generates a verifiable proof JSON:
 }
 ```
 
-This JSON is:
-- Stored in the response
-- Encoded as a QR code (base64 PNG)
-- Verifiable on-chain using the transaction hash
+## Docker
 
-## 🌐 Network Options
+See `DOCKER.md` for running the backend with Docker and `docker-compose.yml`.
 
-### Polygon (Recommended)
-- Low gas fees
-- Fast transactions
-- EVM-compatible
-- RPC: https://polygon-rpc.com
+## Security notes
 
-### Ethereum Mainnet
-- Higher gas fees
-- Most secure
-- RPC: Use Infura, Alchemy, or own node
+- Never commit private keys. Use environment variables or a secrets manager.
+- IPFS content is public by hash, so do not store sensitive data without encryption.
+- The wallet needs enough funds to pay gas fees on real networks.
 
-### Test Networks
-- Polygon Mumbai: https://rpc-mumbai.maticvigil.com
-- Goerli: Use Infura/Alchemy
+## Troubleshooting
 
-## 📦 Dependencies
+- **IPFS connection error:** make sure `ipfs daemon` is running and the port matches your config.
+- **Transaction fails:** check the contract address, the RPC URL, and that the wallet has funds for gas.
+- **Contract call errors:** confirm the contract is deployed on the same network the backend points to.
 
-- **Spring Boot 3.2.0**: Web framework
-- **Web3j 4.9.8**: Ethereum/Polygon integration
-- **IPFS HTTP Client 1.4.4**: IPFS file operations
-- **ZXing 3.5.2**: QR code generation
-- **Lombok**: Boilerplate reduction
-
-## 🐛 Troubleshooting
-
-### IPFS Connection Error
-- Ensure IPFS daemon is running: `ipfs daemon`
-- Check IPFS port in application.properties matches your node
-
-### Blockchain Transaction Fails
-- Verify contract address is correct
-- Ensure wallet has sufficient funds for gas
-- Check RPC endpoint is accessible
-
-### Contract Call Errors
-- Verify contract is deployed to the configured network
-- Ensure contract address matches deployed address
-- Check network RPC URL is correct
-
-## 📄 License
+## License
 
 MIT License
 
-## 🤝 Contributing
-
-Contributions are welcome! Please open an issue or submit a pull request.
-
 ---
 
-Built with ❤️ using Solidity, Spring Boot, Web3j, and IPFS
-
-
-## Local configuration
-- Backend: copy `src/main/resources/application.properties.example` to `application.properties` and fill in your Ganache values.
-- React app: copy `event-chain-react/src/config/contract.example.js` to `contract.js` and fill in your values.
-
-## Project structure
-- `src/`, `pom.xml`: Spring Boot backend
-- `contracts/`: Solidity smart contracts
-- `frontend/`: React (Create React App) frontend
-- `event-chain-react/`: React (Vite) frontend
+Built with Solidity, Spring Boot, Web3j, React and IPFS.
